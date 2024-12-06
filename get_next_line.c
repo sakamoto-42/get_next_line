@@ -3,58 +3,128 @@
 /*                                                        :::      ::::::::   */
 /*   get_next_line.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: juduchar <juduchar@student.42.fr>          +#+  +:+       +#+        */
+/*   By: sakamoto-42 <sakamoto-42@student.42.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/12/02 09:39:46 by juduchar          #+#    #+#             */
-/*   Updated: 2024/12/02 12:45:16 by juduchar         ###   ########.fr       */
+/*   Created: 2024/12/06 13:56:40 by sakamoto-42       #+#    #+#             */
+/*   Updated: 2024/12/06 17:17:17 by sakamoto-42      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "get_next_line.h"
-#define BUFFER_SIZE 8
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 
-size_t	ft_strlen(const char *s)
+char	*ft_strcopy(const char *src, size_t size)
 {
+	char	*dst;
 	size_t	i;
 
+	dst = (char *) malloc((size + 1) * sizeof(char));
+	if (!dst)
+		return (NULL);
 	i = 0;
-	while (s[i])
-		i++;
-	return (i);
-}
-
-size_t	ft_strlcpy(char *dst, const char *src, size_t size)
-{
-	size_t	i;
-	size_t	src_len;
-
-	src_len = ft_strlen(src);
-	if (size == 0)
-		return (src_len);
-	i = 0;
-	while (src[i] && i < size - 1)
+	while (i < size)
 	{
 		dst[i] = src[i];
 		i++;
 	}
 	dst[i] = '\0';
-	return (src_len);
+	return (dst);
+}
+
+char	*ft_strconcat(char *dst, const char *src)
+{
+	size_t	dst_len;
+	size_t	src_len;
+	char	*str;
+	int		i;
+	int		j;
+
+	dst_len = 0;
+	if (dst)
+		dst_len = strlen(dst);
+	src_len = 0;
+	if (src)
+		src_len = strlen(src);
+	str = (char *) malloc((dst_len + src_len + 1) * sizeof(char));
+	if (!str)
+		return (NULL);
+	i = 0;
+	if (dst)
+	{
+		while (dst[i])
+		{
+			str[i] = dst[i];
+			i++;
+		}
+		free(dst);
+	}
+	j = 0;
+	while (src[j])
+	{
+		str[i] = src[j];
+		i++;
+		j++;
+	}
+	str[i] = '\0';
+	return (str);
+}
+
+char	*ft_extract_line(char **remaining)
+{
+	char	*pos;
+	char	*temp;
+	char	*line;
+	size_t	line_len;
+
+	if (!(*remaining))
+		return (NULL);
+	pos = strchr(*remaining, '\n');
+	if (!pos)
+		return (NULL);
+	line_len = pos - *remaining + 1;
+	line = ft_strcopy(*remaining, line_len);
+	if (!line)
+		return (NULL);
+	temp = ft_strcopy(pos + 1, strlen(pos + 1));
+	if (!temp)
+	{
+		free(line);
+		return (NULL);
+	}
+	free(*remaining);
+	*remaining = temp;
+	return (line);
 }
 
 char	*get_next_line(int fd)
 {
-	char	buffer[BUFFER_SIZE];
-	size_t	bytes_read;
-	static char	*str;
-	size_t	i;
+	static char	*remaining;
+	char		buffer[BUFFER_SIZE + 1];
+	ssize_t		bytes_read;
+	char		*line;
 
-	i = 0;
+	remaining = NULL;
+	line = ft_extract_line(&remaining);
+	if (line)
+		return (line);
 	bytes_read = read(fd, buffer, BUFFER_SIZE);
-	while (i < bytes_read && buffer[i] != '\n')
-		i++;
-	str = (char *) malloc((i + 1) * sizeof(char));
-	if (!str)
+	if (bytes_read <= 0)
+	{
+		if (remaining && *remaining)
+		{
+			line = ft_strcopy(remaining, strlen(remaining));
+			free(remaining);
+			remaining = NULL;
+			return (line);
+		}
+		free(remaining);
+		remaining = NULL;
 		return (NULL);
-	ft_strlcpy(str, buffer, i + 1);
-	return (str);
+	}
+	buffer[bytes_read] = '\0';
+	remaining = ft_strconcat(remaining, buffer);
+	if (!remaining)
+		return (NULL);	
+	return (ft_extract_line(&remaining));
 }
