@@ -6,7 +6,7 @@
 /*   By: julien <julien@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/06 13:56:40 by sakamoto-42       #+#    #+#             */
-/*   Updated: 2024/12/07 20:04:07 by sakamoto-42      ###   ########.fr       */
+/*   Updated: 2024/12/07 19:53:34 by sakamoto-42      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -84,29 +84,29 @@ char	*ft_extract_line(char **remaining)
 
 char	*get_next_line(int fd)
 {
-	static char	*remaining;
+	static char	*remaining[1024];
 	char		buffer[BUFFER_SIZE + 1];
 	ssize_t		bytes_read;
 	char		*line;
 
-	line = ft_extract_line(&remaining);
+	line = ft_extract_line(&remaining[fd]);
 	if (line)
 		return (line);
 	bytes_read = read(fd, buffer, BUFFER_SIZE);
 	while (bytes_read > 0)
 	{
 		buffer[bytes_read] = '\0';
-		remaining = ft_strconcat(remaining, buffer,
-				ft_strlen(remaining), ft_strlen(buffer));
-		if (!remaining)
+		remaining[fd] = ft_strconcat(remaining[fd], buffer,
+				ft_strlen(remaining[fd]), ft_strlen(buffer));
+		if (!remaining[fd])
 			return (NULL);
-		line = ft_extract_line(&remaining);
+		line = ft_extract_line(&remaining[fd]);
 		if (line)
 			return (line);
 		bytes_read = read(fd, buffer, BUFFER_SIZE);
 	}
-	if (bytes_read < 0 || (!remaining || !*remaining))
-		return (free(remaining), remaining = NULL, NULL);
-	line = ft_strcopy(remaining, ft_strlen(remaining));
-	return (free(remaining), remaining = NULL, line);
+	if (bytes_read < 0 || (!remaining[fd] || !*remaining[fd]))
+		return (free(remaining[fd]), remaining[fd] = NULL, NULL);
+	line = ft_strcopy(remaining[fd], ft_strlen(remaining[fd]));
+	return (free(remaining[fd]), remaining[fd] = NULL, line);
 }
