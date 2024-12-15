@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   get_next_line_bonus.h                              :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: julien <julien@student.42.fr>              +#+  +:+       +#+        */
+/*   By: juduchar <juduchar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/02 09:39:34 by juduchar          #+#    #+#             */
-/*   Updated: 2024/12/07 19:58:55 by sakamoto-42      ###   ########.fr       */
+/*   Updated: 2024/12/13 17:39:38 by juduchar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,9 +22,22 @@
 #  define BUFFER_SIZE 1000000
 # endif
 
+# ifndef OPEN_MAX
+#  define OPEN_MAX 256
+# endif
+
 # include <unistd.h>
 # include <stdlib.h>
 
+typedef struct s_file
+{
+	int		fd;
+	char	*remaining;
+	char	buffer[BUFFER_SIZE + 1];
+}				t_file;
+
+t_file	*ft_get_or_create_file_struct(int fd, t_file **files);
+void	ft_free_file(t_file **file);
 char	*get_next_line(int fd);
 char	*ft_strcopy(const char *src, size_t size);
 char	*ft_strconcat(char *dst, const char *src,

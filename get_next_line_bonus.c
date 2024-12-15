@@ -1,60 +1,44 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_line.c                                    :+:      :+:    :+:   */
+/*   get_next_line_bonus.c                              :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: julien <julien@student.42.fr>              +#+  +:+       +#+        */
+/*   By: juduchar <juduchar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/12/06 13:56:40 by sakamoto-42       #+#    #+#             */
-/*   Updated: 2024/12/07 19:53:34 by sakamoto-42      ###   ########.fr       */
+/*   Created: 2024/12/06 13:56:40 by juduchar          #+#    #+#             */
+/*   Updated: 2024/12/13 19:14:51 by juduchar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "get_next_line.h"
+#include "get_next_line_bonus.h"
 
-char	*ft_strcopy(const char *src, size_t size)
+t_file	*ft_get_or_create_file_struct(int fd, t_file **files)
 {
-	char	*dst;
-	size_t	i;
-
-	dst = (char *) malloc((size + 1) * sizeof(char));
-	if (!dst)
+	if (fd < 0 || fd > OPEN_MAX || BUFFER_SIZE <= 0)
 		return (NULL);
-	i = 0;
-	while (i < size)
+	if (!files[fd])
 	{
-		dst[i] = src[i];
-		i++;
+		files[fd] = (t_file *) malloc(sizeof(t_file));
+		if (!files[fd])
+			return (NULL);
+		files[fd]->fd = fd;
+		files[fd]->remaining = NULL;
+		files[fd]->buffer[0] = '\0';
 	}
-	dst[i] = '\0';
-	return (dst);
+	return (files[fd]);
 }
 
-char	*ft_strconcat(char *dst, const char *src,
-	size_t dst_len, size_t src_len)
+void	ft_free_file(t_file **file)
 {
-	char	*str;
-	size_t	i;
-	size_t	j;
-
-	str = (char *) malloc((dst_len + src_len + 1) * sizeof(char));
-	if (!str)
-		return (NULL);
-	i = 0;
-	if (dst)
+	if (!file || !*file)
+		return ;
+	if ((*file)->remaining)
 	{
-		while (i < dst_len)
-		{
-			str[i] = dst[i];
-			i++;
-		}
-		free(dst);
+		free((*file)->remaining);
+		(*file)->remaining = NULL;
 	}
-	j = 0;
-	while (j < src_len)
-		str[i++] = src[j++];
-	str[i] = '\0';
-	return (str);
+	free(*file);
+	*file = NULL;
 }
 
 char	*ft_extract_line(char **remaining)
@@ -82,31 +66,47 @@ char	*ft_extract_line(char **remaining)
 	return (line);
 }
 
+char	*ft_finalize_line(t_file **file_ptr, ssize_t bytes_read)
+{
+	t_file	*file;
+	char	*line;
+
+	file = *file_ptr;
+	if (bytes_read < 0 || !file->remaining || !*file->remaining)
+	{
+		ft_free_file(file_ptr);
+		return (NULL);
+	}
+	line = ft_strcopy(file->remaining, ft_strlen(file->remaining));
+	ft_free_file(file_ptr);
+	return (line);
+}
+
 char	*get_next_line(int fd)
 {
-	static char	*remaining[1024];
-	char		buffer[BUFFER_SIZE + 1];
-	ssize_t		bytes_read;
-	char		*line;
+	static t_file	*files[OPEN_MAX];
+	t_file			*file;
+	ssize_t			bytes_read;
+	char			*line;
 
-	line = ft_extract_line(&remaining[fd]);
+	file = ft_get_or_create_file_struct(fd, files);
+	if (!file)
+		return (NULL);
+	line = ft_extract_line(&file->remaining);
 	if (line)
 		return (line);
-	bytes_read = read(fd, buffer, BUFFER_SIZE);
+	bytes_read = read(fd, file->buffer, BUFFER_SIZE);
 	while (bytes_read > 0)
 	{
-		buffer[bytes_read] = '\0';
-		remaining[fd] = ft_strconcat(remaining[fd], buffer,
-				ft_strlen(remaining[fd]), ft_strlen(buffer));
-		if (!remaining[fd])
+		file->buffer[bytes_read] = '\0';
+		file->remaining = ft_strconcat(file->remaining, file->buffer,
+				ft_strlen(file->remaining), bytes_read);
+		if (!file->remaining)
 			return (NULL);
-		line = ft_extract_line(&remaining[fd]);
+		line = ft_extract_line(&file->remaining);
 		if (line)
 			return (line);
-		bytes_read = read(fd, buffer, BUFFER_SIZE);
+		bytes_read = read(fd, file->buffer, BUFFER_SIZE);
 	}
-	if (bytes_read < 0 || (!remaining[fd] || !*remaining[fd]))
-		return (free(remaining[fd]), remaining[fd] = NULL, NULL);
-	line = ft_strcopy(remaining[fd], ft_strlen(remaining[fd]));
-	return (free(remaining[fd]), remaining[fd] = NULL, line);
+	return (ft_finalize_line(&files[fd], bytes_read));
 }
